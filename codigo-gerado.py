@@ -57,6 +57,24 @@ def carregar_dados(origem):
     return df
 
 
+def explodir_responsaveis(df, separar=True):
+    """Separa responsáveis múltiplos ('A, B' ou 'A + B') em linhas individuais."""
+    if not separar or "Responsável" not in df.columns:
+        return df
+    linhas = []
+    for _, r in df.iterrows():
+        resp = r["Responsável"]
+        if resp in ("—", "", "A definir"):
+            linhas.append(r)
+            continue
+        partes = [p.strip() for p in resp.replace(" + ", ",").split(",") if p.strip()]
+        for p in partes:
+            nova = r.copy()
+            nova["Responsável"] = p
+            linhas.append(nova)
+    return pd.DataFrame(linhas)
+
+
 # ─────────────────────────── SIDEBAR ───────────────────────────
 with st.sidebar:
     st.markdown("### Fonte de dados")
@@ -87,8 +105,8 @@ dff = df[df["Meta"].isin(f_meta) & df["Nível"].isin(f_nivel) & df["Status"].isi
 
 
 # ─────────────────────────── HEADER ───────────────────────────
-st.markdown(f"## Painel SGD 2026 - Acompanhamento Interno")
-st.caption("Acompanhamento das metas até 30/11/2026 · Férias da Luciana 02–22/12")
+st.markdown(f"## Painel SGD 2026 — Nacional Gás")
+st.caption("Acompanhamento das metas até 30/11/2026 · Férias da gestora 02–22/12")
 
 c1, c2, c3 = st.columns([1, 1, 2])
 c1.markdown(f"<span class='selo' style='background:#FDECEA;color:#C62828'>Prazo fatal: 30/11/2026</span>", unsafe_allow_html=True)
@@ -202,6 +220,71 @@ st.write("")
 st.divider()
 
 
+# ─────────────────────────── ANÁLISE POR RESPONSÁVEL ───────────────────────────
+st.markdown("### Análise por responsável")
+
+r1, r2 = st.columns([3, 1])
+with r2:
+    separar = st.checkbox(
+        "Separar responsáveis múltiplos",
+        value=True,
+        help="Ex.: 'Caroline, Ligia, Patricia' vira 3 linhas, uma por pessoa.",
+    )
+
+df_resp = explodir_responsaveis(dff, separar)
+
+if "Responsável" in df_resp.columns and len(df_resp):
+    resumo = (
+        df_resp.groupby("Responsável")["Status"]
+        .value_counts()
+        .unstack(fill_value=0)
+        .reindex(columns=ORDEM_STATUS, fill_value=0)
+        .reset_index()
+    )
+    resumo["Total"] = resumo[ORDEM_STATUS].sum(axis=1)
+    resumo["% Conclusão"] = (resumo["Concluído"] / resumo["Total"] * 100).round(1)
+    resumo = resumo.sort_values("Total", ascending=False).reset_index(drop=True)
+
+    # gráfico empilhado por responsável
+    long = df_resp.groupby(["Responsável", "Status"]).size().reset_index(name="Qtd")
+    fig = px.bar(long, x="Responsável", y="Qtd", color="Status",
+                 color_discrete_map=CORES, category_orders={"Status": ORDEM_STATUS},
+                 text="Qtd")
+    fig.update_traces(textposition="inside")
+    fig.update_layout(barmode="stack", height=380,
+                      margin=dict(t=20, b=20, l=10, r=10),
+                      plot_bgcolor="white", yaxis_title="Entregáveis", xaxis_title="",
+                      legend_title="", xaxis_tickangle=-20)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # tabela resumo
+    st.dataframe(
+        resumo,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Responsável": st.column_config.TextColumn("Responsável", width="medium"),
+            "Concluído": st.column_config.NumberColumn("Concluídos", format="%d"),
+            "Em andamento": st.column_config.NumberColumn("Em andamento", format="%d"),
+            "Não iniciado": st.column_config.NumberColumn("Não iniciados", format="%d"),
+            "Total": st.column_config.NumberColumn("Total", format="%d"),
+            "% Conclusão": st.column_config.NumberColumn("% Conclusão", format="%.1f%%"),
+        },
+    )
+
+    # alerta para quem tem carga alta de não iniciados
+    criticos = resumo[resumo["Não iniciado"] > 0].sort_values("Não iniciado", ascending=False)
+    if len(criticos):
+        st.warning(
+            "**Atenção à alocação:** " +
+            ", ".join(f"{r} ({n} não iniciados)" for r, n in zip(criticos["Responsável"], criticos["Não iniciado"]))
+        )
+else:
+    st.info("Nenhum dado de responsável disponível no filtro atual.")
+
+st.divider()
+
+
 # ─────────────────────────── MARCOS E RISCOS ───────────────────────────
 m1, m2 = st.columns([1, 1])
 
@@ -211,7 +294,7 @@ with m1:
         ("22/10/2026", "Reunião de votação do Manual de Padronização com os revendedores"),
         ("23/10/2026", "Entrega da proposta de fluxo de acompanhamento"),
         ("30/11/2026", "Prazo final de encaminhamento de todas as entregas"),
-        ("02–22/12/2026", "Férias da Luciana — sem validação de relatórios"),
+        ("02–22/12/2026", "Férias da gestora — sem validação de relatórios"),
     ]
     for d, t in marcos:
         st.markdown(f"<div class='marco'><div class='data'>{d}</div><div class='txt'>{t}</div></div>",
