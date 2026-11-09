@@ -5,7 +5,7 @@ from datetime import datetime
 
 # ─────────────────────────── CONFIG ───────────────────────────
 st.set_page_config(
-    page_title="Painel SGD 2026 — Nacional Gás",
+    page_title="Painel SGD 2026 — Controle interno de entregáveis",
     page_icon="📊",
     layout="wide",
 )
@@ -106,7 +106,7 @@ dff = df[df["Meta"].isin(f_meta) & df["Nível"].isin(f_nivel) & df["Status"].isi
 
 # ─────────────────────────── HEADER ───────────────────────────
 st.markdown(f"## Painel SGD 2026 — Nacional Gás")
-st.caption("Acompanhamento das metas até 30/11/2026 · Férias da gestora 02–22/12")
+st.caption("Acompanhamento das metas até 30/11/2026 · Férias da Luciana 02–22/12")
 
 c1, c2, c3 = st.columns([1, 1, 2])
 c1.markdown(f"<span class='selo' style='background:#FDECEA;color:#C62828'>Prazo fatal: 30/11/2026</span>", unsafe_allow_html=True)
@@ -294,7 +294,7 @@ with m1:
         ("22/10/2026", "Reunião de votação do Manual de Padronização com os revendedores"),
         ("23/10/2026", "Entrega da proposta de fluxo de acompanhamento"),
         ("30/11/2026", "Prazo final de encaminhamento de todas as entregas"),
-        ("02–22/12/2026", "Férias da gestora — sem validação de relatórios"),
+        ("02–22/12/2026", "Férias da Luciana — sem validação de relatórios"),
     ]
     for d, t in marcos:
         st.markdown(f"<div class='marco'><div class='data'>{d}</div><div class='txt'>{t}</div></div>",
